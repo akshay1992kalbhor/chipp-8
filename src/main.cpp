@@ -1,3 +1,4 @@
+#include <chrono>
 #include <iomanip>
 #include <cstdint>
 #include <fstream>
@@ -5,6 +6,9 @@
 #include <stdexcept>
 #include <vector>
 #include <algorithm>
+#include <thread>
+
+
 
 struct Memory {
 public:
@@ -31,26 +35,71 @@ private:
   std::vector<uint8_t> main;
 };
 
+
+
+
+
+
 // 6XNN -> Store NN in VX
 // 8XY0 -> Store value of VY in VX
 struct Registers {
 public:
-  void add_registers() {}
+  void add_num_in_register(uint8_t num, uint8_t reg) {
+ 	registers[reg] += num; 
+  }
+  void add_reg_value_to_register(uint8_t from, uint8_t to) {
+	  if (registers[to] + registers[from] >= 0xFF) {
+		registers[15] = 0x01;
+	  } else {
+		  registers[15] = 0x00;
+	  }
+	  registers[to] += registers[from];
+  } 
+  void store_num_in_register(uint8_t num, uint8_t reg) {
+	registers[reg] = num; 
+  }
+  void store_reg_value_to_register(uint8_t from, uint8_t to) {
+ 	registers[to] = registers[from]; 
+  }
 
-  void store(uint8_t value, uint8_t reg) { V0 = value; }
+  void start_timer() {
+	  std::cout << "Start timer\n";
+	  std::chrono::system_clock::time_point now = std::chrono::system_clock::now(); 
+	  while (true) {
+		auto end = std::chrono::system_clock::now();
+		std::chrono::duration<double> elapsed_seconds = end - now;
+		double etd = elapsed_seconds.count();
+		if (etd >= 1.0/60.0) {
+			std::cout << "Tick: " << std::endl;
+			delay_timer -= 1;
+			if (delay_timer == 0) {
+				break;
+			}
+		}
+	  } 
+	  std::cout << "End timer\n";
+  } 
 
-  uint8_t V0; // 00 -> FF
-  uint8_t VF; // FLAG
-
+  std::vector<uint8_t> registers{0xF, 0}; // 00 -> FF
   uint16_t I; // 0000 -> FFFF
+  uint8_t delay_timer = 0x01;
 };
+
+void process_instructions() {
+
+}
+
 
 struct Instruction {
 
 };
 
 
-struct Interpreter {
+
+
+
+
+struct Interpreter : std::thread {
   Interpreter(std::string file_path) : file_path_(file_path) {}
   void static print_instruction(uint16_t instr) {
 	std::cout << "INSTRUCTION: ";	
@@ -63,8 +112,6 @@ struct Interpreter {
     } else {
       uint16_t b;
       while (ifs.read(reinterpret_cast<char*>(&b), sizeof(b))) {
-		//std::cout << "Before conversion\n";	
-		//std::cout << std::hex << +b << std::endl;
 		uint8_t* l = reinterpret_cast<uint8_t*>(&b);
 		uint8_t temp = l[0];
 		l[0] = l[1];
@@ -82,22 +129,45 @@ private:
 };
 
 
-// Chip-8 Instruction: AB CD => (160 + 11) (192 + 13) => 171 205
-// 1NNN : JUMP to address 34A
-// Big-Endian 200: 13 201: 4A
+
+
+
+
+
 
 int main() {
   Memory mem{};
   Registers regs{};
   Interpreter iterp("../c8games/GUESS");
-  iterp.print_program();
-  Interpreter::print_instruction(0x00e0);
+  //iterp.print_program();
+  //Interpreter::print_instruction(0xe0); 
+  std::thread t1(&Registers::start_timer, &regs);
+  std::cout << "Midway\n";
+  
+  t1.join(); 
+  std::cout << "Finally done" << std::endl;
+  return 0;
+}
+
+
+
+
+
+
+
+// Helpers
+void check_system_endianess() {
   uint16_t ex = 0x1234;
   uint8_t* low = reinterpret_cast<uint8_t*>(&ex); 
   // 12 = 2 + 16 = 18 => Big endian
-  // 34 = 4 + 48 = 52 => Low endian
+  // 34 = 4 + 48 = 52 => Little endian
   std::cout << "LOW: " << +*low << std::endl; 
-  std::cout << "HIGH: " << +*(low+1) << std::endl; 
-
-  return 0;
+  std::cout << "HIGH: " << +*(low+1) << std::endl;
+  std::cout << "System is little-endian" << std::endl;
 }
+
+// Chip-8 Instruction: AB CD => (160 + 11) (192 + 13) => 171 205
+// 1NNN : JUMP to address 34A
+// Big-Endian 200: 13 201: 4A
+
+
