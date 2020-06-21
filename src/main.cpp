@@ -8,7 +8,8 @@
 #include <algorithm>
 #include <thread>
 
-
+#include <SDL2/SDL.h>
+// g++ -std=gnu++17 main.cpp -lSDL2
 
 struct Memory {
 public:
@@ -20,8 +21,9 @@ public:
       return true;
     } else {
       return false;
-    }
+    // g++ -std=gnu++17 main.cpp -lSDL2}
   }
+}
   uint8_t get_value(size_t location) {
     if (location < capacity) {
       return main[location];
@@ -29,6 +31,7 @@ public:
       throw std::out_of_range("Invalid memory access");
     }
   }
+
 
 private:
   constexpr static size_t capacity = 4096;
@@ -130,7 +133,9 @@ private:
 
 
 
-
+struct Display {
+	std::vector<std::vector<uint8_t>> screen{32, {64, 0}};
+};
 
 
 
@@ -146,6 +151,25 @@ int main() {
   
   t1.join(); 
   std::cout << "Finally done" << std::endl;
+
+  SDL_Init(SDL_INIT_VIDEO);
+  SDL_Window *_window;
+  _window = SDL_CreateWindow("Chip-8 Emulator", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 700, 500, SDL_WINDOW_RESIZABLE);
+  
+  
+  SDL_Event e;
+  bool quit = false;
+  while (!quit) {
+	while (SDL_PollEvent(&e)) {
+		if (e.type == SDL_KEYDOWN) {
+			quit = true;
+		}
+	}
+  }
+
+  SDL_DestroyWindow(_window);
+  SDL_Quit();
+  
   return 0;
 }
 
