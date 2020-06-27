@@ -1,10 +1,11 @@
-#include <algorithm>
-#include <chrono>
-#include <cstdint>
+//#include <algorithm>
+//#include <chrono>
+//#include <condition_variable>
+//#include <cstdint>
 #include <fstream>
-#include <iomanip>
+//#include <iomanip>
 #include <iostream>
-#include <stdexcept>
+//#include <stdexcept>
 #include <thread>
 #include <vector>
 
@@ -57,7 +58,7 @@ public:
   }
 
   void start_timer() {
-    std::cout << "Start timer\n";
+    //std::cout << "Start timer\n";
     std::chrono::system_clock::time_point now =
         std::chrono::system_clock::now();
     while (true) {
@@ -66,18 +67,28 @@ public:
       double etd = elapsed_seconds.count();
       if (etd >= 1.0 / 60.0) {
         std::cout << "Tick: " << std::endl;
+		std::lock_guard<std::mutex> lk{m};
+		std::cout << "Decreasing timer: " << +delay_timer << std::endl;
         delay_timer -= 1;
         if (delay_timer == 0) {
           break;
         }
       }
     }
-    std::cout << "End timer\n";
+    //std::cout << "End timer\n";
+  }
+
+  void read_timer() {
+	//std::cout << "Trying to read the timer" << std::endl;
+	std::lock_guard<std::mutex> lk{m};
+	std::cout << "Timer value: " << +delay_timer << std::endl;
   }
 
   std::vector<uint8_t> registers{0xF, 0}; // 00 -> FF
   uint16_t I;                             // 0000 -> FFFF
-  uint8_t delay_timer = 0x01;
+  uint8_t delay_timer = 0xFF;
+  std::mutex m;
+  std::condition_variable cv;
 };
 
 struct Instruction {};
@@ -193,15 +204,20 @@ int main() {
   Registers regs{};
   Interpreter iterp("../c8games/GUESS");
   Display dis{};
-  dis.start_gui();
+  //dis.start_gui();
   
   iterp.print_program();
   // Interpreter::print_instruction(0xe0);
   std::thread t1(&Registers::start_timer, &regs);
+  std::thread t2(&Registers::read_timer, &regs);
   std::cout << "Midway\n";
 
-  t1.join();
 
+
+  t1.join();
+  t2.join();
+  
+  
   process_instructions(iterp.instructions_);
   std::cout << "Finally done: " << iterp.instructions_.size() << std::endl;
 
