@@ -1,0 +1,22 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/Users/akshaykalbhor/ChiPP-8/src/main.cpp
+SDL2/SDL.h
+-
+algorithm
+-
+fstream
+-
+iostream
+-
+thread
+-
+vector
+-
+
