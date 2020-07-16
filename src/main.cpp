@@ -1,20 +1,13 @@
-//#include <algorithm>
-//#include <chrono>
-//#include <condition_variable>
-//#include <cstdint>
-//#include <iomanip>
-//#include <stdexcept>
 #include <SDL2/SDL.h>
 #include <algorithm>
 #include <fstream>
 #include <iostream>
+#include <mutex>
 #include <thread>
 #include <vector>
 
 /*
  * g++ -std=gnu++17 main.cpp -lSDL2
- * 6XNN -> Store NN in VX
- * 8XY0 -> Store value of VY in VX
  */
 
 struct Memory {
@@ -37,22 +30,26 @@ struct Memory {
             throw std::out_of_range("Invalid memory access");
         }
     }
-    constexpr static size_t capacity = 4096;
+
+	void print_mem(uint16_t address, uint16_t num_bytes) {
+		for (uint16_t i = 0; i < num_bytes; i++) {
+			std::cout << address+i << ": " << +main[address+i] << std::endl;
+		}
+	}
+
+    constexpr static size_t capacity = 4096; // 2^12 -> 13 -> 0x1000
+    constexpr static size_t program_start_address = 0x200;
     std::vector<uint8_t> main;
 };
 
 struct Registers {
   public:
-
-	
-
-	// START - ARITHMETIC OPS
-
+    // START - ARITHMETIC OPS
     void add_num_in_register(uint8_t num, uint8_t reg) {
         registers[reg] += num;
     }
     void add_reg_value_to_register(uint8_t from, uint8_t to) {
-		// TODO: Test this function
+        // TODO: Test this function
         if (registers[to] + registers[from] >= 0xFF) {
             registers[15] = 0x01;
         } else {
@@ -67,7 +64,6 @@ struct Registers {
         registers[to] = registers[from];
     }
 
-	
     void sub_reg_value_from_register(uint8_t reg_idx, uint8_t from) {
         if (registers[from] - registers[reg_idx] <= 0x00) {
             registers[15] = 0x00;
@@ -76,71 +72,65 @@ struct Registers {
         }
         registers[from] -= registers[reg_idx];
     }
-	void sub_and_set(uint8_t reg_idx, uint8_t from) {
-		if (registers[reg_idx] - registers[from] <= 0x00) {
+    void sub_and_set(uint8_t reg_idx, uint8_t from) {
+        if (registers[reg_idx] - registers[from] <= 0x00) {
             registers[15] = 0x00;
         } else {
             registers[15] = 0x01;
         }
         registers[from] = registers[reg_idx] - registers[from];
-	}
+    }
 
-	// END - ARITHMETIC OPS
+    void set_I_register(uint16_t value) { Ireg = value; }
+    // END - ARITHMETIC OPS
 
+    // START - BIT OPS
+    void logical_and(uint8_t reg_one, uint8_t reg_two) {
+        reg_two = reg_one & reg_two;
+    }
+    void logical_or(uint8_t reg_one, uint8_t reg_two) {
+        reg_two = reg_one | reg_two;
+    }
+    void logical_xor(uint8_t reg_one, uint8_t reg_two) {
+        reg_two = reg_one ^ reg_two;
+    }
+    void shift_rone_store(uint8_t from, uint8_t to) {
+        registers[0xF] = from & 0x1;
+        to = from >> 1;
+    }
+    void shift_lone_store(uint8_t from, uint8_t to) {
+        registers[0xF] = from & 0x80;
+        to = from << 1;
+    }
+    void set_reg_to_rand_with_mask(uint8_t reg, uint8_t mask) {
+        // TODO: SHould this be logical and?
+        uint8_t random_number = 0x4F;
+        reg = random_number & mask;
+    }
+    // END - BIT OPS
 
-	// START - BIT OPS
-	void logical_and(uint8_t reg_one, uint8_t reg_two) {
-		reg_two = reg_one & reg_two;
-	}
-	
-	void logical_or(uint8_t reg_one, uint8_t reg_two) {
-		reg_two = reg_one | reg_two;
-	}
-	
-	void logical_xor(uint8_t reg_one, uint8_t reg_two) {
-		reg_two = reg_one ^ reg_two;
-	}
+    // START - FLOW CONTROL
+    void jmp_to_address(uint16_t address) {
+        // TODO: Fill this up!
+    }
+    void jmp_to_address_offset(uint16_t address) {
+        // TODO: Fill this up!
+    }
+    // END - FLOW CONTROL
 
+    // START
+    void ex_subroutine_at_address(uint16_t address) {
+        // TODO
+    }
 
-	void shift_rone_store(uint8_t from, uint8_t to) {
-		registers[0xF] = from & 0x1;
-		to = from >> 1;
-	}
-	
-	void shift_lone_store(uint8_t from, uint8_t to) {
-		registers[0xF] = from & 0x80;
-		to = from << 1;
-	}
+    void ret_from_subroutine() {
+        // TODO
+    }
+    // END
 
-	void set_reg_to_rand_with_mask(uint8_t reg, uint8_t mask) {
-		// TODO: SHould this be logical and?
-		uint8_t random_number = 0x4F;
-		reg = random_number & mask;
-	}
-	// END - BIT OPS
-	
-
-
-	// START - FLOW CONTROL
-	void jmp_to_address(uint16_t address) {
-		// TODO: Fill this up!
-	}
-	void jmp_to_address_offset(uint16_t address) {
-		// TODO: Fill this up!
-
-	}
-	// END - FLOW CONTROL
-	
-
-	// START
-	void ex_subroutine_at_address(uint16_t address) {
-		// TODO
-	}
-	
-	void ret_from_subroutine() {
-		// TODO
-	}
-	// END
+    // START - DRAWING
+    void draw_sprite(uint8_t reg1, uint8_t reg2, uint8_t size) {}
+    // END - DRAWING
 
     void start_timer() {
         // std::cout << "Start timer\n";
@@ -163,10 +153,17 @@ struct Registers {
         // std::cout << "End timer\n";
     }
 
-    void read_timer() {
+    uint8_t read_timer() {
         // std::cout << "Trying to read the timer" << std::endl;
         std::lock_guard<std::mutex> lk{m};
         std::cout << "Timer value: " << +delay_timer << std::endl;
+        return delay_timer;
+    }
+    uint8_t read_sound_timer() {
+        // std::cout << "Trying to read the timer" << std::endl;
+        std::lock_guard<std::mutex> lk{m};
+        std::cout << "Timer value: " << +sound_timer << std::endl;
+        return sound_timer;
     }
 
     void set_timer(uint8_t value) {
@@ -174,10 +171,31 @@ struct Registers {
         delay_timer = value;
         std::cout << "Timer value set: " << +delay_timer << std::endl;
     }
+    void set_sound_timer(uint8_t value) {
+        std::lock_guard<std::mutex> lk{m};
+        sound_timer = value;
+        std::cout << "Timer value set: " << +delay_timer << std::endl;
+    }
 
-    std::vector<uint8_t> registers{0xF, 0}; // 00 -> FF
-    uint16_t I;                             // 0000 -> FFFF
+    void print_registers() {
+        for (int i = 0; i < 16; i++) {
+            std::cout << "V" << i << " | ";
+        }
+		std::cout << " I ";
+        std::cout << std::endl;
+        for (int i = 0; i < 16; i++) {
+            std::cout << std::setw(2) << +registers[i] << " | ";
+        }
+		std::cout << std::setw(3) << Ireg;
+        std::cout << std::endl;
+    }
+
+    Registers() : registers(16, 0) {}
+
+    std::vector<uint8_t> registers; // 00 -> FF
+    uint16_t Ireg;                  // 0000 -> FFFF
     uint8_t delay_timer = 0xFF;
+    uint8_t sound_timer = 0xFF;
     std::mutex m;
     std::condition_variable cv;
 };
@@ -215,21 +233,294 @@ struct Interpreter {
     std::vector<uint16_t> instructions_;
 };
 
-enum class Instruction : uint16_t {
-    ClearScreen = 0x00E0,
-    DrawSprite,
-    CallSubroutine,
-    Add,
-    Subtract,
+struct Display {
+    Display() : screen(32, std::vector<uint8_t>(64, 0)) {}
+
+    void clear_screen() {
+        std::lock_guard<std::mutex> lk{dmut};
+        for (auto &v : screen) {
+            for (auto &e : v) {
+                e = 0;
+            }
+        }
+    }
+
+    void set_screen(std::vector<std::vector<uint8_t>> &buffer) {
+        std::lock_guard<std::mutex> lk{dmut};
+        for (auto i = 0; i < 32; i++) {
+            for (auto j = 0; j < 64; j++) {
+                screen[i][j] = buffer[i][j];
+            }
+        }
+    }
+
+    void update(SDL_Window *_window) {
+
+        SDL_Surface *window_surface = SDL_GetWindowSurface(_window);
+        unsigned int *pixels =
+            reinterpret_cast<unsigned int *>(window_surface->pixels);
+        int width = window_surface->w;
+        int height = window_surface->h;
+
+        auto format = SDL_GetPixelFormatName(window_surface->format->format);
+
+        int scale = 10;
+        std::lock_guard<std::mutex> lk{dmut};
+        for (int y = 0; y < 32 * scale; y++) {
+            for (int x = 0; x < 64 * scale; x++) {
+                auto bow = screen[y % 32][x % 64];
+                pixels[x + y * width] =
+                    SDL_MapRGBA(window_surface->format, bow, bow, bow, 255);
+                // 0-63
+            }
+        }
+        SDL_UpdateWindowSurface(_window);
+    }
+
+  private:
+    std::vector<std::vector<uint8_t>> screen;
+    std::mutex dmut;
 };
 
-struct Display {
-    std::vector<std::vector<uint8_t>> screen{32, {64, 0}};
-    void start_gui() {
+/*
+ * Emulator has { Timer, CPU has { Registers, Memory }, Interpreter*, Display* }
+ *
+ */
+
+struct CPU {
+
+    // CPU Methods
+    void process_instructions(Memory &ram, Display &display) {
+        int iaddress = ram.program_start_address;
+        std::cout << "Starting processing" << std::endl;
+        while (iaddress <= 0x260) {
+            uint8_t fb = ram.main[iaddress];
+            uint8_t sb = ram.main[iaddress + 1];
+
+            // std::right << std::setfill('0') << std::setw(4) << std::hex
+            std::cout << "F:" << std::right << std::setfill('0') << std::setw(2)
+                      << std::hex << +fb << std::endl;
+            std::cout << "S:" << std::right << std::setfill('0') << std::setw(2)
+                      << std::hex << +sb << std::endl;
+            if (fb >> 4 == 0x0) {
+                if (fb != 0) {
+                    std::cout << "CALL ML SUBROUTINE\n";
+                } else {
+                    if (sb == 0xE0) {
+                        display.clear_screen();
+                        std::cout << "CLEAR SCREEN\n";
+                    } else if (sb == 0xEE) {
+                        iaddress = stack.back();
+                        stack.pop_back();
+                        std::cout << "RETURN FROM SUBROUTINE\n";
+                        continue;
+                    } else {
+                        std::cout << "UNRECOGNIZED INSTRUCTION 0x0\n";
+                    }
+                }
+            } else if (fb >> 4 == 0x1) {
+                uint16_t address = ((fb & 0x0F) << 2) | sb;
+                stack.push_back(iaddress + 2);
+                iaddress = address;
+                std::cout << "JUMP TO ADDRESS\n";
+                continue;
+            } else if (fb >> 4 == 0x2) {
+				uint16_t one = ((fb & 0x0F) << 8) | sb;
+				std::cout << "ONE: " << std::hex <<  one << std::endl;
+                uint16_t address = ((fb & 0x0F) << 8) | sb;
+                stack.push_back(iaddress + 2);
+                iaddress = address;
+                std::cout << "CALL SUBROUTINE\n";
+                continue;
+            } else if (fb >> 4 == 0x3) {
+                auto number = sb;
+                uint8_t reg_index = fb & 0x0F;
+                if (rs.registers[reg_index] == number) {
+                    iaddress += 2;
+                }
+                std::cout << "SKIP NXT INST IF VX==NN\n";
+            } else if (fb >> 4 == 0x4) {
+                auto number = sb;
+                uint8_t reg_index = fb & 0x0F;
+                if (rs.registers[reg_index] != number) {
+                    iaddress += 2;
+					std::cout << "SKIPPING NXT INST\n";
+                } else {
+					std::cout << "NOT SKIPPING NXT INST\n";
+				}
+            } else if (fb >> 4 == 0x5) {
+                uint8_t reg_index = sb >> 4;
+                uint8_t reg_index2 = fb & 0x0F;
+                if (rs.registers[reg_index] == rs.registers[reg_index2]) {
+                    iaddress += 2;
+                }
+                std::cout << "SKIP NXT INST IF VX == VY\n";
+            } else if (fb >> 4 == 0x6) {
+                uint8_t number = sb;
+                uint8_t reg = fb & 0x0F;
+                rs.store_num_in_register(number, reg);
+                std::cout << "STORE " << +number << " IN V" << +reg << "\n";
+            } else if (fb >> 4 == 0x7) {
+                auto number = sb;
+                auto reg = fb & 0x0F;
+                rs.add_num_in_register(number, reg);
+                std::cout << "ADD NN TO VX\n";
+            } else if (fb >> 4 == 0x8) {
+				
+				
+				if ((sb & 0x0F) == 0x0) {
+					uint8_t from = sb >> 4;
+                    uint8_t to = fb & 0x0F;
+                    rs.store_reg_value_to_register(from, to);
+                    std::cout << "V" << +to << " = V" << +from << "\n";
+				}
+                else if ((sb & 0x0F) == 0x2) {
+                    uint8_t reg_one = sb >> 4;
+                    uint8_t reg_two = fb & 0x0F;
+                    rs.logical_and(reg_one, reg_two);
+                    std::cout << "V" << +reg_two << " &= V" << +reg_one << "\n";
+                }
+				else if ((sb & 0x0F) == 0x4) {
+                    uint8_t reg_one = sb >> 4;
+                    uint8_t reg_two = fb & 0x0F;
+                    rs.add_reg_value_to_register(reg_two, reg_one);
+                    std::cout << "V" << +reg_two << " += V" << +reg_one << "\n";
+                }
+
+
+            } else if (fb >> 4 == 0x9) {
+                uint8_t reg_index = sb >> 4;
+                uint8_t reg_index2 = fb & 0x0F;
+                if (rs.registers[reg_index] != rs.registers[reg_index2]) {
+                    iaddress += 2;
+                }
+                std::cout << "SKIP NXT INST IF VX != VY\n";
+            } else if (fb >> 4 == 0xA) {
+                
+				uint16_t address = ((fb & 0x0F) << 8) | sb;
+                rs.set_I_register(address);
+                std::cout << "STORE " << address << " IN REG I\n";
+            
+			} else if (fb >> 4 == 0xB) {
+                uint16_t address = ((fb & 0x0F) << 2) | sb;
+                rs.jmp_to_address_offset(address);
+                std::cout << "JMP TO ADDRESS NNN + V0\n";
+            } else if (fb >> 4 == 0xC) {
+                auto reg = fb & 0x0F;
+                auto mask = sb;
+                rs.set_reg_to_rand_with_mask(reg, mask);
+                std::cout << "SET VX TO A RAND NUM WITH MASK NN\n";
+            } else if (fb >> 4 == 0xD) {
+               	std::cout << "HOORAY! STACK WORKS" << std::endl; 
+				break;	
+				auto reg_index2 = sb >> 4;
+                auto reg_index = fb & 0x0F;
+                auto size = sb & 0x0F;
+                rs.draw_sprite(reg_index, reg_index2, size);
+                std::cout << "DRW SPRITE AT VX,VY WITH N BYTES OF SPRITE DATA "
+                             "STORED AT I\n";
+            } else if (fb >> 4 == 0xE) {
+                if (sb == 0x9E) {
+                    auto reg_index = fb & 0x0F;
+                    std::cout
+                        << "SKIP NXT INSTRUCTION IF KEY PRESSED == VAL IN VX\n";
+                } else if (sb == 0xA1) {
+                    auto reg_index = fb & 0x0F;
+                    std::cout
+                        << "SKIP NXT INSTRUCTION IF KEY PRESSED != VAL IN VX\n";
+                } else {
+                }
+            } else if (fb >> 4 == 0xF) {
+                if (sb == 0x07) {
+                    auto reg_index = fb & 0x0F;
+                    rs.registers[reg_index] = rs.read_timer();
+                    std::cout << "STORE CV OF DELAY TIMER IN VX\n";
+                } else if (sb == 0x0A) {
+                    auto reg_index = fb & 0x0F;
+                    rs.registers[reg_index] = 0x00;
+                    std::cout << "UI: WAIT FOR KEYPRESS AND STORE VAL IN VX\n";
+                } else if (sb == 0x15) {
+                    auto reg_index = fb & 0x0F;
+                    rs.set_timer(rs.registers[reg_index]);
+                    std::cout << "SET D.TIMER TO VAL OF REG VX\n";
+                } else if (sb == 0x18) {
+                    auto reg_index = fb & 0x0F;
+                    rs.set_sound_timer(rs.registers[reg_index]);
+                    std::cout << "SET S.TIMER TO VAL OF REG VX\n";
+                } else if (sb == 0x1E) {
+                    auto reg_index = fb & 0x0F;
+                    rs.Ireg += rs.registers[reg_index];
+                    std::cout << "ADD VAL IN VX TO I\n";
+                } else if (sb == 0x29) {
+                    std::cout << "UI: SOMETHING TO DO WITH SPRITES\n";
+                } else if (sb == 0x55) {
+                    std::cout << "UI: WAIT FOR KEYPRESS AND STORE VAL IN VX\n";
+                } else if (sb == 0x33) {
+
+
+					uint8_t reg = fb & 0x0F;
+					uint8_t val = rs.registers[reg];
+					uint8_t add = 0;
+					uint8_t num = 100;
+					while (add <= 2) {
+						std::cout << "HERE: " << val /num << std::endl;
+						ram.main[rs.Ireg+add] = val / num;	
+						val %= num;
+						num /= 10;
+						add++;
+					}
+                    std::cout << "Store decimal equi of val in VX at I,I+1,I+2\n";
+                } else if (sb == 0x65) {
+					uint8_t max_reg = (fb & 0x0F);
+					for (uint8_t i = 0; i <= max_reg; i++) {
+						rs.registers[i] = ram.main[rs.Ireg+i];
+					}
+                    std::cout << "8/16 FILL V0-VX WITH VALUES FROM MEM[I],MEM[I+1],..\n";
+                }
+            } else {
+                std::cout << "UNRECOGNIZED INSTRUCTION\n";
+            }
+            iaddress += 2;
+        }
+		ram.print_mem(0x294, 3);
+        rs.print_registers();
+    }
+
+    // CPU Member Vars
+    Registers rs;
+    std::vector<uint16_t> stack{};
+};
+
+struct Emulator {
+    // Methods
+    void load_file(std::string fpath) {
+        std::cout << "LOADING FILE....." << std::endl;
+        interp.interpret_program(fpath);
+        const auto &is = interp.instructions_;
+        int instruction_index = 0;
+        while (instruction_index < is.size()) {
+            const auto &i = is[instruction_index];
+            // std::cout << "ORIGINAL\n";
+            Interpreter::print_instruction(i);
+            uint8_t fb = i >> 8;
+            uint8_t sb = (i & (0x00FF));
+            // std::cout << "F: " << +fb << "S: " << +sb << std::endl;
+            std::cout << '\n';
+            ram.set_value(ram.program_start_address + (2 * instruction_index),
+                          fb);
+            ram.set_value(
+                ram.program_start_address + (2 * instruction_index) + 1, sb);
+            instruction_index += 1;
+        }
+    }
+
+    void run_program() {
+
+        std::cout << "RUNNING....." << std::endl;
         SDL_Init(SDL_INIT_VIDEO);
         SDL_Window *_window;
         _window = SDL_CreateWindow("Chip-8 Emulator", SDL_WINDOWPOS_CENTERED,
-                                   SDL_WINDOWPOS_CENTERED, 700, 500,
+                                   SDL_WINDOWPOS_CENTERED, 640, 320,
                                    SDL_WINDOW_RESIZABLE);
 
         SDL_Surface *window_surface = SDL_GetWindowSurface(_window);
@@ -241,12 +532,6 @@ struct Display {
         auto format = SDL_GetPixelFormatName(window_surface->format->format);
         std::cout << "Pixel Format: " << format << std::endl;
 
-        /*
-         Uint8 r, g, b, a;
-         SDL_GetRGBA(pixel, window_surface->format, &r, &g, &b, &a);
-       */
-        // SDL_RenderSetScale(SDL_GetRenderer(_window), 10.0, 10.0);
-
         int scale = 10;
         for (int y = 0; y < 32 * scale; y++) {
             for (int x = 0; x < 64 * scale; x++) {
@@ -255,151 +540,57 @@ struct Display {
                 // 0-63
             }
         }
-
         SDL_UpdateWindowSurface(_window);
-
         SDL_Event e;
         bool quit = false;
+        bool has_started_processesing = false;
         while (!quit) {
             while (SDL_PollEvent(&e)) {
                 if (e.type == SDL_KEYDOWN) {
                     quit = true;
                 } else if (e.type == SDL_WINDOWEVENT) {
                     if (e.window.event == SDL_WINDOWEVENT_SIZE_CHANGED) {
-                        std::cout << "WIndow event" << std::endl;
+                        std::cout << "Window event" << std::endl;
                     }
                 }
             }
+
+            if (!has_started_processesing) {
+                has_started_processesing = true;
+                // cpu.process_instructions(ram, display);
+                cpu_thread = std::thread(&CPU::process_instructions, &cpu,
+                                         std::ref(ram), std::ref(display));
+                // std::thread t(&CPU::some_method, &cpu);
+            }
+            display.update(_window);
         }
 
         SDL_DestroyWindow(_window);
         SDL_Quit();
     }
-};
 
-void edit1(int a) {}
-
-/*
- * Emulator has { Timer, CPU has { Registers, Memory }, Interpreter*, Display* }
- *
- */
-
-struct Timer {};
-
-struct CPU {
-
-    // CPU Methods
-    void process_instructions(std::vector<uint16_t> &is) {
-        for (const auto &i : is) {
-            // std::cout << "ORIGINAL\n";
-            Interpreter::print_instruction(i);
-            auto fb = i >> 8;
-            auto sb = (i & (0x00FF));
-            /*std::cout << "FB: ";
-            std::cout << std::hex << fb << std::endl;
-            Interpreter::print_instruction(fb);
-            std::cout << "SB: ";
-            Interpreter::print_instruction(sb);	*/
-
-            if (fb >> 4 == 0x0) {
-
-                if (fb != 0) {
-
-                    std::cout << "CALL ML SUBROUTINE\n";
-                } else {
-
-                    if (sb == 0xE0) {
-
-                        std::cout << "CLEAR SCREEN\n";
-                    } else if (sb == 0xEE) {
-
-                        std::cout << "RETURN FROM SUBROUTINE\n";
-                    } else {
-
-                        std::cout << "UNRECOGNIZED INSTRUCTION 0x0\n";
-                    }
-                }
-            } else if (fb >> 4 == 0x1) {
-
-                std::cout << "JUMP TO ADDRESS\n";
-            } else if (fb >> 4 == 0x2) {
-
-                std::cout << "CALL SUBROUTINE\n";
-            } else if (fb >> 4 == 0x3) {
-
-                std::cout << "SKIP NXT INST IF VX==NN\n";
-            } else if (fb >> 4 == 0x4) {
-
-                std::cout << "SKIP NXT INST IF VX != NN\n";
-            } else if (fb >> 4 == 0x5) {
-
-                std::cout << "SKIP NXT INST IF VX == VY\n";
-            } else if (fb >> 4 == 0x6) {
-
-                std::cout << "STORE NN IN VX\n";
-            } else if (fb >> 4 == 0x7) {
-
-                std::cout << "ADD NN TO VX\n";
-            } else if (fb >> 4 == 0x8) {
-
-                std::cout << "A LOT OF DIFF STUFF\n";
-            } else if (fb >> 4 == 0x9) {
-
-                std::cout << "SKIP NXT INST IF VX != VY\n";
-            } else if (fb >> 4 == 0xA) {
-
-                std::cout << "STORE NNN IN REG I\n";
-            } else if (fb >> 4 == 0xB) {
-
-                std::cout << "JMP TO ADDRESS NNN + V0\n";
-            } else if (fb >> 4 == 0xC) {
-
-                std::cout << "SET VX TO A RAND NUM WITH MASK NN\n";
-            } else if (fb >> 4 == 0xD) {
-
-                std::cout << "DRW SPRITE AT VX,VY WITH N BYTES OF SPRITE DATA "
-                             "STORED AT I\n";
-            } else if (fb >> 4 == 0xE) {
-
-                std::cout << "A LOT OF DIFF STUFF\n";
-            } else if (fb >> 4 == 0xF) {
-
-                std::cout << "A LOT OF DIFF STUFF\n";
-            } else {
-
-                std::cout << "UNRECOGNIZED INSTRUCTION\n";
-            }
+    ~Emulator() {
+        if (cpu_thread.joinable()) {
+            cpu_thread.join();
         }
     }
 
-    // CPU Member Vars
-    Memory m;
-    Registers rs;
-    Timer timer;
-};
-
-struct Emulator {
-    // Methods
-    void load_file(std::string fpath) {
-        interp.interpret_program(fpath);
-        cpu.process_instructions(interp.instructions_);
-        std::cout << "Finally done: " << interp.instructions_.size()
-                  << std::endl;
-    }
     // Member Vars
     CPU cpu;
+    Memory ram;
+    Display display;
     Interpreter interp;
+    std::thread cpu_thread;
     std::string fpath;
 };
 
 int main() {
-    // Write if else statements for each and every instruction
-    // Complete the basic instructions like addition and ...
     // Move timer code into Timer class
     // Complete timer instructions
     // Hook up the display with the RAM/Register vars
     Emulator emulator;
     emulator.load_file("../c8games/GUESS");
+    emulator.run_program();
     // Display dis{};
     // dis.start_gui();
     // Interpreter::print_instruction(0xe0);
