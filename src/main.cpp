@@ -1,4 +1,5 @@
 #include <SDL2/SDL.h>
+#include <deque>
 #include <algorithm>
 #include <fstream>
 #include <iostream>
@@ -268,7 +269,7 @@ struct Display {
         std::lock_guard<std::mutex> lk{dmut};
         for (int y = 0; y < 32 * scale; y++) {
             for (int x = 0; x < 64 * scale; x++) {
-                auto bow = screen[y % 32][x % 64];
+                auto bow = screen[y / scale][x / scale];
                 pixels[x + y * width] =
                     SDL_MapRGBA(window_surface->format, bow, bow, bow, 255);
                 // 0-63
@@ -412,14 +413,41 @@ struct CPU {
                 std::cout << "SET VX TO A RAND NUM WITH MASK NN\n";
             } else if (fb >> 4 == 0xD) {
                	std::cout << "HOORAY! STACK WORKS" << std::endl; 
+				uint8_t reg_index2 = sb >> 4;
+                uint8_t reg_index = fb & 0x0F;
+                uint8_t size = sb & 0x0F;
+
+				uint8_t x = rs.registers[reg_index];
+				uint8_t y = rs.registers[reg_index2];
+               	for (uint8_t i = 0; i < size; i++) {
+
+					uint8_t byte = ram.main[rs.Ireg + i];
+						
+					std::cout << "SDATA: " << +byte << std::endl;
+
+					std::deque<uint8_t> bvec{};
+					while (byte > 0) {
+						if (byte % 2 == 1) {
+							bvec.push_front(1);	
+						} else {
+							bvec.push_front(0);	
+						}
+						byte /= 2;
+					}
+
+					for (uint8_t j = 0; j < 8; j++) {
+						if (bvec[j] == 1) {
+							buffer[y+i][x+j] = 255;
+						} else {
+							buffer[y+i][x+j] = 0;
+						}
+					}
+				}	
+				std::cout << "DRW SPRITE AT V" << +reg_index << ",V" << +reg_index2 << " WITH " << +size<< " BYTES OF SPRITE DATA STORED AT I: " << rs.Ireg << "\n";
+				display.set_screen(buffer);
 				break;	
-				auto reg_index2 = sb >> 4;
-                auto reg_index = fb & 0x0F;
-                auto size = sb & 0x0F;
-                rs.draw_sprite(reg_index, reg_index2, size);
-                std::cout << "DRW SPRITE AT VX,VY WITH N BYTES OF SPRITE DATA "
-                             "STORED AT I\n";
-            } else if (fb >> 4 == 0xE) {
+			
+			} else if (fb >> 4 == 0xE) {
                 if (sb == 0x9E) {
                     auto reg_index = fb & 0x0F;
                     std::cout
@@ -486,9 +514,13 @@ struct CPU {
         rs.print_registers();
     }
 
+	CPU() : buffer(32, std::vector<uint8_t>(64, 0)) {
+	}
+
     // CPU Member Vars
     Registers rs;
     std::vector<uint16_t> stack{};
+	std::vector<std::vector<uint8_t>> buffer;
 };
 
 struct Emulator {
