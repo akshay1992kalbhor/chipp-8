@@ -292,12 +292,13 @@ struct CPU {
 
     // CPU Methods
     void process_instructions(Memory &ram, Display &display) {
-        int iaddress = ram.program_start_address;
+        uint16_t iaddress = ram.program_start_address;
         std::cout << "Starting processing" << std::endl;
-        while (iaddress != 0x252 && rs.registers[1] != 5) {
+		uint16_t tcalled = 0;
+        while (iaddress != 0x21A && tcalled <= 2) {
             uint8_t fb = ram.main[iaddress];
             uint8_t sb = ram.main[iaddress + 1];
-
+			if (iaddress == 0x214) { tcalled++; }
             // std::right << std::setfill('0') << std::setw(4) << std::hex
             std::cout << "F:" << std::right << std::setfill('0') << std::setw(2)
                       << std::hex << +fb << std::endl;
@@ -320,8 +321,8 @@ struct CPU {
                     }
                 }
             } else if (fb >> 4 == 0x1) {
-                uint16_t address = ((fb & 0x0F) << 2) | sb;
-                stack.push_back(iaddress + 2);
+                uint16_t address = ((fb & 0x0F) << 8) | sb;
+                //stack.push_back(iaddress + 2);
                 iaddress = address;
                 std::cout << "JUMP TO ADDRESS\n";
                 continue;
@@ -419,22 +420,34 @@ struct CPU {
 
 				uint8_t x = rs.registers[reg_index];
 				uint8_t y = rs.registers[reg_index2];
-               	for (uint8_t i = 0; i < size; i++) {
+               	
+				for (uint8_t i = 0; i < size; i++) {
 
 					uint8_t byte = ram.main[rs.Ireg + i];
 						
-					std::cout << "SDATA: " << +byte << std::endl;
+					std::cout << "SDATA: " << +byte << " BYTES: ";
 
-					std::deque<uint8_t> bvec{};
-					while (byte > 0) {
+					std::deque<uint8_t> bvec(8, 0);
+					// E0 => 1110 0000
+					// 20 => 0010 0000	
+					// E0 => 1110 0000
+					// 80 => 1000 0000
+					// E0 => 1110 0000
+					// {0000 0111}
+					int idx = 7;
+					while (byte > 0 || idx >= 0) {
 						if (byte % 2 == 1) {
-							bvec.push_front(1);	
+							bvec[idx] = 1;	
 						} else {
-							bvec.push_front(0);	
+							bvec[idx] = 0;
 						}
 						byte /= 2;
+						idx--;
 					}
-
+					for (const auto& e : bvec) {
+						std::cout << +e;
+					}
+					std::cout << std::endl;
 					for (uint8_t j = 0; j < 8; j++) {
 						if (bvec[j] == 1) {
 							buffer[y+i][x+j] = 255;
