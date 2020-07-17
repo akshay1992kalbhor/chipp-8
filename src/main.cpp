@@ -294,7 +294,7 @@ struct CPU {
     void process_instructions(Memory &ram, Display &display) {
         int iaddress = ram.program_start_address;
         std::cout << "Starting processing" << std::endl;
-        while (iaddress <= 0x260) {
+        while (iaddress != 0x252 && rs.registers[1] != 5) {
             uint8_t fb = ram.main[iaddress];
             uint8_t sb = ram.main[iaddress + 1];
 
@@ -384,7 +384,7 @@ struct CPU {
 				else if ((sb & 0x0F) == 0x4) {
                     uint8_t reg_one = sb >> 4;
                     uint8_t reg_two = fb & 0x0F;
-                    rs.add_reg_value_to_register(reg_two, reg_one);
+                    rs.add_reg_value_to_register(reg_one, reg_two);
                     std::cout << "V" << +reg_two << " += V" << +reg_one << "\n";
                 }
 
@@ -445,7 +445,7 @@ struct CPU {
 				}	
 				std::cout << "DRW SPRITE AT V" << +reg_index << ",V" << +reg_index2 << " WITH " << +size<< " BYTES OF SPRITE DATA STORED AT I: " << rs.Ireg << "\n";
 				display.set_screen(buffer);
-				break;	
+				//break;	
 			
 			} else if (fb >> 4 == 0xE) {
                 if (sb == 0x9E) {
