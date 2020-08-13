@@ -20,41 +20,31 @@ enum class Keypress {
 };
 
 
-/*
- * Emulator has { Timer, CPU has { Registers, Memory }, Interpreter*, Display* }
- *
- */
-
 struct CPU {
-
-    // CPU Methods
     void process_instructions(Memory &ram, Display &display, Keypress& key) {
-        uint16_t iaddress = ram.program_start_address;
-        std::cout << "Starting processing" << std::endl;
+        
+		uint16_t iaddress = ram.program_start_address;
+        
+		std::cout << "Starting processing" << std::endl;
         uint16_t tcalled = 0;
-        // tcalled <= 107, wait for key press
-        while (iaddress != 0x228) {
-            uint8_t fb = ram.main[iaddress];
+		std::vector<uint16_t> is{};
+        
+		while (iaddress != 0x23C ) {
+            
+			uint8_t fb = ram.main[iaddress];
             uint8_t sb = ram.main[iaddress + 1];
-            if (iaddress == 0x214) {
+            
+			if (iaddress == 0x214) {
                 tcalled++;
             }
-
-			std::cout << "IADDRESS: " << std::right << std::setfill('0') << std::setw(3) << std::hex << iaddress << std::endl;
-            // std::right << std::setfill('0') << std::setw(4) << std::hex
-            std::cout << "F:" << std::right << std::setfill('0') << std::setw(2)
-                      << std::hex << +fb << std::endl;
-            std::cout << "S:" << std::right << std::setfill('0') << std::setw(2)
-                      << std::hex << +sb << std::endl;
-            if (fb >> 4 == 0x0) {
-                std::cout << "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
-                          << std::endl;
+			
+			if (fb >> 4 == 0x0) {
                 if (fb != 0) {
                     std::cout << "CALL ML SUBROUTINE\n";
+					throw "Unimplemented!";
                 } else {
                     if (sb == 0xE0) {
                         display.clear_screen();
-                        std::cout << "CLEAR SCREEN\n";
                     } else if (sb == 0xEE) {
                         iaddress = stack.back();
                         stack.pop_back();
@@ -64,13 +54,23 @@ struct CPU {
                         std::cout << "UNRECOGNIZED INSTRUCTION 0x0\n";
                     }
                 }
-            } else if (fb >> 4 == 0x1) {
+            } 
+			
+			
+			
+			
+			
+			
+			else if (fb >> 4 == 0x1) {
                 uint16_t address = ((fb & 0x0F) << 8) | sb;
                 // stack.push_back(iaddress + 2);
                 iaddress = address;
                 std::cout << "JUMP TO ADDRESS\n";
                 continue;
-            } else if (fb >> 4 == 0x2) {
+            
+			
+			
+			} else if (fb >> 4 == 0x2) {
                 uint16_t one = ((fb & 0x0F) << 8) | sb;
                 std::cout << "ONE: " << std::hex << one << std::endl;
                 uint16_t address = ((fb & 0x0F) << 8) | sb;
@@ -78,14 +78,21 @@ struct CPU {
                 iaddress = address;
                 std::cout << "CALL SUBROUTINE\n";
                 continue;
-            } else if (fb >> 4 == 0x3) {
+            
+			
+			
+			} else if (fb >> 4 == 0x3) {
                 auto number = sb;
                 uint8_t reg_index = fb & 0x0F;
                 if (rs.registers[reg_index] == number) {
                     iaddress += 2;
                 }
                 std::cout << "SKIP NXT INST IF VX==NN\n";
-            } else if (fb >> 4 == 0x4) {
+            
+			
+			
+			
+			} else if (fb >> 4 == 0x4) {
                 auto number = sb;
                 uint8_t reg_index = fb & 0x0F;
                 if (rs.registers[reg_index] != number) {
@@ -138,9 +145,11 @@ struct CPU {
                 }
                 std::cout << "SKIP NXT INST IF VX != VY\n";
             } else if (fb >> 4 == 0xA) {
-
+				
                 uint16_t address = ((fb & 0x0F) << 8) | sb;
                 rs.set_I_register(address);
+				std::cout << "XX3 =" << rs.Ireg << std::endl;
+				is.push_back(address);
                 std::cout << "STORE " << address << " IN REG I\n";
 
             } else if (fb >> 4 == 0xB) {
@@ -207,14 +216,6 @@ struct CPU {
                           << " BYTES OF SPRITE DATA STORED AT I: " << rs.Ireg
                           << "\n";
                 display.set_screen(buffer);
-                // std::cout << "AFTER" << std::endl;
-                /*for (const auto &v : buffer) {
-                    for (const auto &e : v) {
-                        std::cout << (e == 255 ? 1 : 0);
-                    }
-                    std::cout << "X" << std::endl;
-                }*/
-                // break;
 
             } else if (fb >> 4 == 0xE) {
                 if (sb == 0x9E) {
@@ -255,6 +256,9 @@ struct CPU {
                 } else if (sb == 0x1E) {
                     auto reg_index = fb & 0x0F;
                     rs.Ireg += rs.registers[reg_index];
+					std::cout << "V3 =" << +rs.registers[reg_index] << std::endl;
+					std::cout << "XX3 =" << rs.Ireg << std::endl;
+					is.push_back(rs.Ireg);
                     std::cout << "ADD VAL IN VX TO I\n";
                 } else if (sb == 0x29) {
                     std::cout << "UI: SOMETHING TO DO WITH SPRITES\n";
@@ -273,13 +277,13 @@ struct CPU {
                         num /= 10;
                         add++;
                     }
-                    std::cout
-                        << "Store decimal equi of val in VX at I,I+1,I+2\n";
+					//rs.Ireg = rs.Ireg + reg + 1;
                 } else if (sb == 0x65) {
                     uint8_t max_reg = (fb & 0x0F);
                     for (uint8_t i = 0; i <= max_reg; i++) {
                         rs.registers[i] = ram.main[rs.Ireg + i];
                     }
+					//rs.Ireg = rs.Ireg + max_reg + 1;
                     std::cout << "8/16 FILL V0-VX WITH VALUES FROM "
                                  "MEM[I],MEM[I+1],..\n";
                 }
@@ -290,6 +294,10 @@ struct CPU {
         }
         ram.print_mem(0x294, 3);
         rs.print_registers();
+		for (const auto& e : is) {
+			std::cout << e << " ";
+		}
+		std::cout << "|\n";
     }
 
     CPU() : buffer(32, std::vector<uint8_t>(64, 0)) {}
@@ -309,8 +317,6 @@ struct Emulator {
         int instruction_index = 0;
         while (instruction_index < is.size()) {
             const auto &i = is[instruction_index];
-            // std::cout << "ORIGINAL\n";
-            //Interpreter::print_instruction(i);
             uint8_t fb = i >> 8;
             uint8_t sb = (i & (0x00FF));
             // std::cout << "F: " << +fb << "S: " << +sb << std::endl;
@@ -324,14 +330,12 @@ struct Emulator {
     }
 
     void run_program() {
-
         std::cout << "RUNNING....." << std::endl;
         SDL_Init(SDL_INIT_VIDEO);
         SDL_Window *_window;
         _window = SDL_CreateWindow("Chip-8 Emulator", SDL_WINDOWPOS_CENTERED,
                                    SDL_WINDOWPOS_CENTERED, 640, 320,
                                    SDL_WINDOW_RESIZABLE);
-
         SDL_Surface *window_surface = SDL_GetWindowSurface(_window);
         unsigned int *pixels =
             reinterpret_cast<unsigned int *>(window_surface->pixels);
@@ -418,20 +422,27 @@ int main() {
     // Move timer code into Timer class
     // Complete timer instructions
     Emulator emulator;
-    emulator.load_file("../c8games/GUESS");
+    emulator.load_file("../c8games/MAZE");
     emulator.run_program();
-    /*
-    auto ff = &Registers::start_timer;
-    auto f1 = &edit;
-    std::thread t1(&Registers::start_timer, &regs);
-    std::thread t2(&Registers::read_timer, &regs);
-
-    std::cout << "Midway\n";
-    (regs.*ff)();
-    (regs.*ff)();
-    t1.join();
-    t2.join();
-          */
-
     return 0;
 }
+
+
+
+
+
+
+/*
+ *
+ *
+ *std::cout << "IADDRESS: " << std::right << std::setfill('0') << std::setw(3) << std::hex << iaddress << std::endl;
+            std::cout << "F:" << std::right << std::setfill('0') << std::setw(2)
+                      << std::hex << +fb << std::endl;
+            std::cout << "S:" << std::right << std::setfill('0') << std::setw(2)
+                      << std::hex << +sb << std::endl;
+            
+*/
+			
+			
+			
+
