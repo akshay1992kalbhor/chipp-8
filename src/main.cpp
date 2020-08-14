@@ -213,7 +213,9 @@ struct CPU {
 					is.push_back(rs.Ireg);
                 }
 				else if (sb == 0x29) {
-                    throw "Unimplemented Instruction: 0xFX29";
+					/* Store the address of the character to be drawn in the 'I' regisiter */
+					uint8_t char_to_draw = fb & 0x0F;
+					rs.Ireg = 0x0 + 5 * char_to_draw;
                 }
 				else if (sb == 0x55) {
 					/* Store the values from registers 'V0' to 'VX' in memory starting from the address
