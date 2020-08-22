@@ -16,7 +16,8 @@ int main() {
 
     Emulator emulator;
     emulator.load_file("../c8games/MAZE");
-    emulator.run_program();
+    emulator.prepare_display_and_input();
+    emulator.start_loop();
     return 0;
 }
 

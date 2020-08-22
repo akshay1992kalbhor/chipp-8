@@ -8,7 +8,6 @@ struct Display {
     Display() : screen(32, std::vector<uint8_t>(64, 0)) {}
 
     void clear_screen() {
-        std::lock_guard<std::mutex> lk{dmut};
         for (auto &v : screen) {
             for (auto &e : v) {
                 e = 0;
@@ -17,7 +16,6 @@ struct Display {
     }
 
     void set_screen(std::vector<std::vector<uint8_t>> &buffer) {
-        std::lock_guard<std::mutex> lk{dmut};
         for (auto i = 0; i < 32; i++) {
             for (auto j = 0; j < 64; j++) {
                 screen[i][j] = buffer[i][j];
@@ -27,7 +25,6 @@ struct Display {
 
     void update(SDL_Window *_window) {
 
-        std::lock_guard<std::mutex> lk{dmut};
         SDL_Surface *window_surface = SDL_GetWindowSurface(_window);
         unsigned int *pixels =
             reinterpret_cast<unsigned int *>(window_surface->pixels);
@@ -50,5 +47,4 @@ struct Display {
 
   private:
     std::vector<std::vector<uint8_t>> screen;
-    std::mutex dmut;
 };

@@ -14,8 +14,8 @@ struct Memory {
     ~Memory() {}
 
     void load_fonts() {
-        const uint16_t fonts_start_address = 0x50;
-        const uint8_t fonts[80] = {
+        constexpr uint16_t fonts_start_address = 0x50;
+        constexpr uint8_t fonts[80] = {
             0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
             0x20, 0x60, 0x20, 0x20, 0x70, // 1
             0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2

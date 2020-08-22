@@ -1,7 +1,0 @@
-[
-{
-  "directory": "/Users/akshaykalbhor/ChiPP-8/cmake/build",
-  "command": "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/c++   -I/Library/Frameworks/SDL2.framework/Headers   -std=c++17 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.15.sdk   -F/Library/Frameworks  -o CMakeFiles/chipp-8.dir/src/main.cpp.o -c /Users/akshaykalbhor/ChiPP-8/src/main.cpp",
-  "file": "/Users/akshaykalbhor/ChiPP-8/src/main.cpp"
-}
-]
