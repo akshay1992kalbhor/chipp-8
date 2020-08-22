@@ -1,12 +1,15 @@
+#pragma once
+#include <string>
+#include <fstream>
+#include <iostream>
+#include <vector>
+
 struct Interpreter {
+
     Interpreter() {}
     Interpreter(std::string file_path) : file_path_(file_path) {}
 
-    void static print_instruction(uint16_t instr) {
-        // std::cout << "INSTRUCTION: ";
-        std::cout << std::right << std::setfill('0') << std::setw(4) << std::hex
-                  << instr << ": ";
-    }
+
     void interpret_program(std::string &fpath) {
         std::ifstream ifs(fpath, std::ios_base::binary | std::ios_base::in);
         if (!ifs.is_open()) {

@@ -1,4 +1,10 @@
+#pragma once
+#include <vector>
+#include <mutex>
+#include <SDL2/SDL.h>
+
 struct Display {
+
     Display() : screen(32, std::vector<uint8_t>(64, 0)) {}
 
     void clear_screen() {

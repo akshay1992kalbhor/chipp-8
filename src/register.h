@@ -1,4 +1,12 @@
+#pragma once
+
+
 #include <cstdint>
+#include <vector>
+#include <mutex>
+#include <iostream>
+#include <iomanip>
+
 
 struct Registers {
 
@@ -8,15 +16,15 @@ struct Registers {
         registers[reg] += num;
     }
     void add_reg_value_to_register(uint8_t from, uint8_t to) {
-        // TODO: Test this function
-        if (registers[to] + registers[from] >= 0xFF) {
+		if (registers[to] + registers[from] >= 0xFF) {
             registers[15] = 0x01;
         } else {
             registers[15] = 0x00;
         }
         registers[to] += registers[from];
     }
-    void store_num_in_register(uint8_t num, uint8_t reg) {
+    
+	void store_num_in_register(uint8_t num, uint8_t reg) {
         registers[reg] = num;
     }
     void store_reg_value_to_register(uint8_t from, uint8_t to) {
@@ -31,7 +39,8 @@ struct Registers {
         }
         registers[from] -= registers[reg_idx];
     }
-    void sub_and_set(uint8_t reg_idx, uint8_t from) {
+    
+	void sub_and_set(uint8_t reg_idx, uint8_t from) {
         if (registers[reg_idx] - registers[from] <= 0x00) {
             registers[15] = 0x00;
         } else {
@@ -41,7 +50,6 @@ struct Registers {
     }
 
     void set_I_register(uint16_t value) { Ireg = value; }
-    // END - ARITHMETIC OPS
 
     // START - BIT OPS
     void logical_and(uint8_t reg_one, uint8_t reg_two) {
@@ -66,7 +74,8 @@ struct Registers {
         uint8_t random_number = 0x4F;
         reg = random_number & mask;
     }
-    // END - BIT OPS
+    
+	// END - BIT OPS
 
     // START - FLOW CONTROL
     void jmp_to_address(uint16_t address) {
@@ -78,7 +87,8 @@ struct Registers {
     // END - FLOW CONTROL
 
     // START
-    void ex_subroutine_at_address(uint16_t address) {
+    
+	void ex_subroutine_at_address(uint16_t address) {
         // TODO
     }
 
@@ -158,3 +168,16 @@ struct Registers {
     std::mutex m;
     std::condition_variable cv;
 };
+
+std::ostream& operator<<(std::ostream& os, Registers& regs) {
+    for (int i = 0; i < 16; i++) {
+            os << "V" << i << " | ";
+        }
+	os << " I ";
+    os << std::endl;
+    for (int i = 0; i < 16; i++) {
+        os << std::setw(2) << +regs.registers[i] << " | ";
+    }
+    os << std::setw(3) << regs.Ireg;
+    return os << std::endl;
+}
