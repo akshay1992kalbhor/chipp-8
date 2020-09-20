@@ -231,10 +231,6 @@ struct CPU {
         }
     }
 
-	/*
-	 * Constructor
-	 */
-
 	CPU() : buffer(32, std::vector<uint8_t>(64, 0)) {}
 
 	Registers rs;
